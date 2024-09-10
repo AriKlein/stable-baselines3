@@ -1,3 +1,12 @@
+# Aaron (Ari) Klein
+# Principal Engineer, AI/ML Wireless Systems, Kenyi Technologies
+
+# Evaluates the trained MLP policy on the gym taxi problem
+# Export greedy deterministic policy (e.g., the action with maximum probability for each state) to command line
+# Exports policy distribution for each state to an Excel spreadsheet
+
+# Requires xlsxwriter and pandas as well as Stable Baselines 3
+
 from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.vec_env import VecFrameStack
 from stable_baselines3 import PPO
@@ -100,7 +109,7 @@ def export_policy_to_excel(model, my_env):
     possible_actions = ["South", "North", "East", "West", "Pickup", "Dropoff"]
 
     excel_df = {}
-    excel_df_keys_state = ['Taxi Row', 'Taxi Column', 'Passenger Index', 'Destination Index'] #'Destination Row', 'Destination Column']
+    excel_df_keys_state = ['Taxi Row', 'Taxi Column', 'Passenger Index', 'Destination Index']
     excel_df_keys_actions = []
     for ii in possible_actions:
         excel_df_keys_actions.append(['pi('+ii+')'])
@@ -169,32 +178,11 @@ vec_env = gym.make("Taxi-v3", render_mode='human') # , n_envs=4, seed=0)
 
 # model = PPO("MlpPolicy", vec_env, verbose=1)
 
-#model.learn(total_timesteps=25_000)
-
-#model.save("ppo_taxi")
-
-#ppo_taxi_model = PPO.load("ppo_taxi", env=vec_env)
-
 ppo_taxi_model = PPO.load("ppo_taxi_with_pickup_six_actions", env=vec_env)
 
 my_taxi_env = vec_env.env.env.env
 
 export_policy_to_excel(ppo_taxi_model, my_taxi_env)
-
-
-
-
-'''
-obs, info = vec_env.reset()
-
-greedy_policy = np.zeros(25)
-for obs in range(25):
-    action, _states = model.predict(obs, deterministic=True)
-    greedy_policy[obs] = action
-    x = model.policy.get_distribution(model.policy.obs_to_tensor(obs)[obs]).distribution.probs
-
-pretty_print_policy(vec_env.env, greedy_policy)
-'''
 
 out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
 
@@ -203,7 +191,6 @@ o = out[0]
 # while True:
 for i in range(250):
     action, _states = ppo_taxi_model.predict(o, deterministic=False)
-    # obs, rewards, dones, info \
     o, r, d, _, _ = my_taxi_env.step(int(action))
     ep_ret += r
     ep_len += 1

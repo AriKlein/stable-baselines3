@@ -1,3 +1,7 @@
+# Aaron (Ari) Klein
+# Principal Engineer, AI/ML Wireless Systems, Kenyi Technologies
+# Use Stable Baselines 3 PPO algorithm to train MLP policy for the gym taxi problem
+
 from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.vec_env import VecFrameStack
 from stable_baselines3 import PPO
@@ -22,11 +26,9 @@ o = out[0]
 # while True:
 for i in range(1000):
     action, _states = ppo_taxi_model.predict(o, deterministic=False)
-    # obs, rewards, dones, info \
     o, r, d, _, _ = my_taxi_env.step(int(action))
     ep_ret += r
     ep_len += 1
-    # obs = out[0]
     my_taxi_env.render()
     if d:  # or (ep_len == max_ep_len):
         # logger.store(EpRet=ep_ret, EpLen=ep_len)
