@@ -10,7 +10,7 @@ vec_env = gym.make("Taxi-v3") # , render_mode='human') # , n_envs=4, seed=0)
 # vec_env = VecFrameStack(vec_env, n_stack=4)
 
 ppo_taxi_model = PPO("MlpPolicy", vec_env, verbose=1)
-ppo_taxi_model.learn(total_timesteps=int(200000), progress_bar=True)
+ppo_taxi_model.learn(total_timesteps=int(500000), progress_bar=True)
 ppo_taxi_model.save("ppo_taxi_with_pickup_six_actions")
 
 my_taxi_env = vec_env.env.env.env
