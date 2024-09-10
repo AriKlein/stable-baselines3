@@ -1,18 +1,30 @@
-# Aaron (Ari) Klein
-# Principal Engineer, AI/ML Wireless Systems, Kenyi Technologies
+"""""
+Requires xlsxwriter and pandas as well as Stable Baselines 3
 
-# Evaluates the trained MLP policy on the gym taxi problem
-# Export greedy deterministic policy (e.g., the action with maximum probability for each state) to command line
-# Exports policy distribution for each state to an Excel spreadsheet
+Author: Aaron (Ari) Klein, Principal Engineer, AI/ML Wireless Systems, Kenyi Technologies
 
-# Requires xlsxwriter and pandas as well as Stable Baselines 3
+ - Evaluates the trained MLP policy on the gym taxi problem
+
+ - Export greedy deterministic policy (e.g., the action with maximum probability for each state) to command line
+    
+ - Exports policy distribution for each state to an Excel spreadsheet
+"""
+
+"""
+Custom RewardWrapper to modify the reward structure of the taxi environment so that I can optimize with PPO algo:
+  - Reward +10 for correct pickup so that agent can more quickly learn to do correct pickups without needing to 
+    randomly do a full correct pickup -> dropoff sequence before seeing any reward.
+  - Penalize dropoff after pickup (reward = -12) to avoid infinite reward loop with pickup->dropoff->pickup->dropoff...
+  - Reduce penalties for illegal pickups and dropoffs from -10 to -2 so that the agent doesn't learn to largely avoid
+    doing pickups and dropoffs
+"""
+from AriTaxiRewardTransformer import AriTaxiRewardTransformer
 
 from stable_baselines3.common.env_util import make_atari_env
 from stable_baselines3.common.vec_env import VecFrameStack
 from stable_baselines3 import PPO
 import gymnasium as gym
 import numpy as np
-import torch
 import pandas as pd
 
 # Method to pretty-print the policies:
@@ -124,7 +136,7 @@ def export_policy_to_excel(model, my_env):
         excel_df[excel_df_keys_actions[ii][0]] = []
 
     excel_df['Sum Probs'] = []
-    # excel_df['V'] = []
+    excel_df['V'] = []
     excel_df['Highest Probability Action'] = []
 
 
@@ -133,10 +145,10 @@ def export_policy_to_excel(model, my_env):
         for pass_idx in range(5):
             for row_idx in range(5):
                 for col_idx in range(5):
-                    obs = my_env.encode(row_idx, col_idx, pass_idx, dest_idx)
+                    obs = my_env.unwrapped.encode(row_idx, col_idx, pass_idx, dest_idx)
                     state_index = obs
                     # Decode state and put into Excel DF
-                    obs_decoded = list(my_env.decode(obs))
+                    obs_decoded = list(my_env.unwrapped.decode(obs))
                     for ii in range(len(obs_decoded)):
                         excel_df[excel_df_keys_state[ii]].append(obs_decoded[ii])
 
@@ -144,19 +156,20 @@ def export_policy_to_excel(model, my_env):
                     # obs = torch.as_tensor(obs, dtype=torch.float32)
                     # action, _states = model.predict(obs, deterministic=True)
                     # greedy_policy[obs] = action
+
+                    # get action probabilities from observations according to policy network
                     p = model.policy.get_distribution(model.policy.obs_to_tensor(obs)[0]).distribution.probs[0]
 
-
-
-                    # o = torch.as_tensor(o, dtype=torch.float32)
-                    # a, v, logp = model.step(o)
-                    # p = model.ari_get_distribution(o).probs # np.exp(logp)
+                    # get value function from observations according to value function network
+                    features = model.policy.extract_features(model.policy.obs_to_tensor(obs)[0])
+                    latent_pi, latent_vf = model.policy.mlp_extractor(features)
+                    v = model.policy.value_net(latent_vf)
 
                     for ii in range(len(p)):
                         excel_df[excel_df_keys_actions[ii][0]].append(float(p[ii]))
 
                     excel_df['Sum Probs'].append(float(sum(p)))
-                    # excel_df['V'].append(float(v))
+                    excel_df['V'].append(float(v))
                     greedy_action_index = int(np.argmax(p.cpu().detach().numpy()))
                     excel_df['Highest Probability Action'].append(possible_actions[greedy_action_index])
 
@@ -164,42 +177,47 @@ def export_policy_to_excel(model, my_env):
 
     df = pd.DataFrame(excel_df)
 
-    writer = pd.ExcelWriter('WithPickup_SixActions_200000.xlsx', engine="xlsxwriter")
-    df.to_excel(writer, sheet_name='WithPickup_SixActions_200000')
+    writer = pd.ExcelWriter('ppo_taxi_custom_rewards.xlsx', engine="xlsxwriter")
+    df.to_excel(writer, sheet_name='ppo_taxi_custom_rewards')
     writer.close()
 
     pretty_print_policy(my_env,greedy_policy)
 
-# Here we are also multi-worker training (n_envs=4 => 4 environments)
-vec_env = gym.make("Taxi-v3", render_mode='human') # , n_envs=4, seed=0)
 
-# Frame-stacking with 4 frames
-# vec_env = VecFrameStack(vec_env, n_stack=4)
+def main():
+    my_taxi_env = gym.make("Taxi-v3", render_mode='human')
+    my_taxi_env = AriTaxiRewardTransformer(my_taxi_env)
 
-# model = PPO("MlpPolicy", vec_env, verbose=1)
+    ppo_taxi_model = PPO.load("ppo_original_taxi_env_with_reward_wrapper", env=my_taxi_env)
 
-ppo_taxi_model = PPO.load("ppo_taxi_with_pickup_six_actions", env=vec_env)
+    export_policy_to_excel(ppo_taxi_model, my_taxi_env)
 
-my_taxi_env = vec_env.env.env.env
+    out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
 
-export_policy_to_excel(ppo_taxi_model, my_taxi_env)
+    o = out[0]
 
-out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
+    episode_num = 1
+    step_num = 1
+    max_episodes = 10
+    max_steps = 250
+    while episode_num <= max_episodes and step_num <= max_steps:
+        action, _states = ppo_taxi_model.predict(o, deterministic=False)
+        o, r, d, _, _ = my_taxi_env.step(int(action))
+        step_num = step_num+1
+        #print("Took action "+str(int(action)))
+        #print("Received reward "+str(int(r)))
+        ep_ret += r
+        ep_len += 1
+        my_taxi_env.render()
+        if d:  # or (ep_len == max_ep_len):
+            # print("************* COMPLETED EPISODE ***************")
+            print('Episode %d \t EpRet %.3f \t EpLen %d' % (episode_num, ep_ret, ep_len))
+            if episode_num < max_episodes:
+                print("************* BEGINNING NEW EPISODE ***************")
+                out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
+                o = out[0]
+                print("Initial state is " + str(int(o)))
+            episode_num = episode_num + 1
 
-o = out[0]
 
-# while True:
-for i in range(250):
-    action, _states = ppo_taxi_model.predict(o, deterministic=False)
-    o, r, d, _, _ = my_taxi_env.step(int(action))
-    ep_ret += r
-    ep_len += 1
-    # obs = out[0]
-    my_taxi_env.render()
-    if d:  # or (ep_len == max_ep_len):
-        # logger.store(EpRet=ep_ret, EpLen=ep_len)
-        print('Episode %d \t EpRet %.3f \t EpLen %d' % (i, ep_ret, ep_len))
-        out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
-        o = out[0]
-        print("Initial state is " + str(int(o)))
-        # n += 1
+main()

@@ -1,13 +1,3 @@
-# Aaron (Ari) Klein
-# Principal Engineer, AI/ML Wireless Systems, Kenyi Technologies
-
-# Local copy of gym taxi problem with modified reward structure:
- # Reward +10 for correct pickup so that agent can more quickly learn to do correct pickups without needing to do
- #    randomly do a full correct pickup -> dropoff sequence before seeing any reward.
- # Penalize dropoff after pickup (reward = -12) to avoid infinite reward loop with pickup->dropoff->pickup->dropoff...
- # Reduce penalties for illegal pickups and dropoffs from -10 to -2 so that the agent doesn't learn to largely avoid
- #    doing pickups and dropoffs
-
 from contextlib import closing
 from io import StringIO
 from os import path
@@ -210,9 +200,8 @@ class TaxiEnv(Env):
                             elif action == 4:  # pickup
                                 if pass_idx < 4 and taxi_loc == locs[pass_idx]:
                                     new_pass_idx = 4
-                                    reward = 10
                                 else:  # passenger not at location
-                                    reward = -2
+                                    reward = -10
                             elif action == 5:  # dropoff
                                 if (taxi_loc == locs[dest_idx]) and pass_idx == 4:
                                     new_pass_idx = dest_idx
@@ -220,9 +209,8 @@ class TaxiEnv(Env):
                                     reward = 20
                                 elif (taxi_loc in locs) and pass_idx == 4:
                                     new_pass_idx = locs.index(taxi_loc)
-                                    reward =-12
                                 else:  # dropoff at wrong location
-                                    reward = -2
+                                    reward = -10
                             new_state = self.encode(
                                 new_row, new_col, new_pass_idx, dest_idx
                             )
