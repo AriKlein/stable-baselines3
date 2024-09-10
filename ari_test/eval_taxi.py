@@ -24,12 +24,12 @@ def pretty_print_policy(taxi, local_policy):
     direction_repr = {1:' 🡑 ', 2:' 🡒 ', 3:' 🡐 ', 0:' 🡓 ', 4:' + ', 5:' - ', None:' ⬤ '}
 
     # Print policies for states where we are trying to get to passenger, so dest_idx is irrelevant, as long as not = pass_idx
-    '''
+
     print('Passenger not in taxi, pass at Red (top left):')
     for row in range(5):
         for col in range(5):
             state = taxi.encode(row, col, 0, 1)
-            print(taxi.MAP[row+1][2*col],end='')
+            print(MAP[row+1][2*col],end='')
             print(direction_repr[local_policy[state]],end='')
         print()
 
@@ -37,7 +37,7 @@ def pretty_print_policy(taxi, local_policy):
     for row in range(5):
         for col in range(5):
             state = taxi.encode(row, col, 1, 0)
-            print(taxi.MAP[row+1][2*col],end='')
+            print(MAP[row+1][2*col],end='')
             print(direction_repr[local_policy[state]],end='')
         print()
 
@@ -45,7 +45,7 @@ def pretty_print_policy(taxi, local_policy):
     for row in range(5):
         for col in range(5):
             state = taxi.encode(row, col, 2, 0)
-            print(taxi.MAP[row+1][2*col],end='')
+            print(MAP[row+1][2*col],end='')
             print(direction_repr[local_policy[state]],end='')
         print()
 
@@ -53,10 +53,9 @@ def pretty_print_policy(taxi, local_policy):
     for row in range(5):
         for col in range(5):
             state = taxi.encode(row, col, 3, 0)
-            print(taxi.MAP[row+1][2*col],end='')
+            print(MAP[row+1][2*col],end='')
             print(direction_repr[local_policy[state]],end='')
         print()
-    '''
 
 
     # Print policies for states where we already have passenger and are trying to get to destination, so pass_idx is always 4
@@ -97,7 +96,6 @@ def pretty_print_policy(taxi, local_policy):
 
 
 def export_policy_to_excel(model, my_env):
-
 
     possible_actions = ["South", "North", "East", "West", "Pickup/Dropoff"]
 
@@ -152,8 +150,8 @@ def export_policy_to_excel(model, my_env):
 
     df = pd.DataFrame(excel_df)
 
-    writer = pd.ExcelWriter('FourDest_200000.xlsx', engine="xlsxwriter")
-    df.to_excel(writer, sheet_name='FourDest_200000')
+    writer = pd.ExcelWriter('WithPickup_FiveActions_200000.xlsx', engine="xlsxwriter")
+    df.to_excel(writer, sheet_name='WithPickup_FiveActions_200000')
     writer.close()
 
     pretty_print_policy(my_env,greedy_policy)
@@ -172,7 +170,7 @@ vec_env = gym.make("Taxi-v3", render_mode='human') # , n_envs=4, seed=0)
 
 #ppo_taxi_model = PPO.load("ppo_taxi", env=vec_env)
 
-ppo_taxi_model = PPO.load("ppo_taxi_4dest", env=vec_env)
+ppo_taxi_model = PPO.load("ppo_taxi_with_pickup", env=vec_env)
 
 my_taxi_env = vec_env.env.env.env
 
@@ -198,7 +196,7 @@ out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
 o = out[0]
 
 # while True:
-for i in range(1000):
+for i in range(50):
     action, _states = ppo_taxi_model.predict(o, deterministic=False)
     # obs, rewards, dones, info \
     o, r, d, _, _ = my_taxi_env.step(int(action))
