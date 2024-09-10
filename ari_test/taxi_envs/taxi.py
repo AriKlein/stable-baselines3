@@ -168,7 +168,7 @@ class TaxiEnv(Env):
         max_row = num_rows - 1
         max_col = num_columns - 1
         self.initial_state_distrib = np.zeros(num_states)
-        num_actions = 5 #6
+        num_actions = 6
         self.P = {
             state: {action: [] for action in range(num_actions)}
             for state in range(num_states)
@@ -197,13 +197,13 @@ class TaxiEnv(Env):
                                 new_col = min(col + 1, max_col)
                             elif action == 3 and self.desc[1 + row, 2 * col] == b":":
                                 new_col = max(col - 1, 0)
-                            elif action == 4 and (pass_idx < 4):  # pickup
+                            elif action == 4:  # pickup
                                 if pass_idx < 4 and taxi_loc == locs[pass_idx]:
                                     new_pass_idx = 4
                                     reward = 20
                                 else:  # passenger not at location
                                     reward = -2
-                            elif action == 4 and (pass_idx == 4):   # 5:  # dropoff
+                            elif action == 5:  # dropoff
                                 if (taxi_loc == locs[dest_idx]) and pass_idx == 4:
                                     new_pass_idx = dest_idx
                                     terminated = True

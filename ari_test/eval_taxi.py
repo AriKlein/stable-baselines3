@@ -97,7 +97,7 @@ def pretty_print_policy(taxi, local_policy):
 
 def export_policy_to_excel(model, my_env):
 
-    possible_actions = ["South", "North", "East", "West", "Pickup/Dropoff"]
+    possible_actions = ["South", "North", "East", "West", "Pickup", "Dropoff"]
 
     excel_df = {}
     excel_df_keys_state = ['Taxi Row', 'Taxi Column', 'Passenger Index', 'Destination Index'] #'Destination Row', 'Destination Column']
@@ -119,39 +119,44 @@ def export_policy_to_excel(model, my_env):
     excel_df['Highest Probability Action'] = []
 
 
-    for obs in range(my_env.observation_space.n):
-        state_index = obs
-        # Decode state and put into Excel DF
-        obs_decoded = list(my_env.decode(obs))
-        for ii in range(len(obs_decoded)):
-            excel_df[excel_df_keys_state[ii]].append(obs_decoded[ii])
+    #for obs in range(my_env.observation_space.n):
+    for dest_idx in range(4):
+        for pass_idx in range(5):
+            for row_idx in range(5):
+                for col_idx in range(5):
+                    obs = my_env.encode(row_idx, col_idx, pass_idx, dest_idx)
+                    state_index = obs
+                    # Decode state and put into Excel DF
+                    obs_decoded = list(my_env.decode(obs))
+                    for ii in range(len(obs_decoded)):
+                        excel_df[excel_df_keys_state[ii]].append(obs_decoded[ii])
 
-        # Pass state to model
-        # obs = torch.as_tensor(obs, dtype=torch.float32)
-        # action, _states = model.predict(obs, deterministic=True)
-        # greedy_policy[obs] = action
-        p = model.policy.get_distribution(model.policy.obs_to_tensor(obs)[0]).distribution.probs[0]
+                    # Pass state to model
+                    # obs = torch.as_tensor(obs, dtype=torch.float32)
+                    # action, _states = model.predict(obs, deterministic=True)
+                    # greedy_policy[obs] = action
+                    p = model.policy.get_distribution(model.policy.obs_to_tensor(obs)[0]).distribution.probs[0]
 
 
 
-        # o = torch.as_tensor(o, dtype=torch.float32)
-        # a, v, logp = model.step(o)
-        # p = model.ari_get_distribution(o).probs # np.exp(logp)
+                    # o = torch.as_tensor(o, dtype=torch.float32)
+                    # a, v, logp = model.step(o)
+                    # p = model.ari_get_distribution(o).probs # np.exp(logp)
 
-        for ii in range(len(p)):
-            excel_df[excel_df_keys_actions[ii][0]].append(float(p[ii]))
+                    for ii in range(len(p)):
+                        excel_df[excel_df_keys_actions[ii][0]].append(float(p[ii]))
 
-        excel_df['Sum Probs'].append(float(sum(p)))
-        # excel_df['V'].append(float(v))
-        greedy_action_index = int(np.argmax(p.cpu().detach().numpy()))
-        excel_df['Highest Probability Action'].append(possible_actions[greedy_action_index])
+                    excel_df['Sum Probs'].append(float(sum(p)))
+                    # excel_df['V'].append(float(v))
+                    greedy_action_index = int(np.argmax(p.cpu().detach().numpy()))
+                    excel_df['Highest Probability Action'].append(possible_actions[greedy_action_index])
 
-        greedy_policy[state_index] = greedy_action_index
+                    greedy_policy[state_index] = greedy_action_index
 
     df = pd.DataFrame(excel_df)
 
-    writer = pd.ExcelWriter('WithPickup_FiveActions_200000.xlsx', engine="xlsxwriter")
-    df.to_excel(writer, sheet_name='WithPickup_FiveActions_200000')
+    writer = pd.ExcelWriter('WithPickup_SixActions_200000.xlsx', engine="xlsxwriter")
+    df.to_excel(writer, sheet_name='WithPickup_SixActions_200000')
     writer.close()
 
     pretty_print_policy(my_env,greedy_policy)
@@ -170,7 +175,7 @@ vec_env = gym.make("Taxi-v3", render_mode='human') # , n_envs=4, seed=0)
 
 #ppo_taxi_model = PPO.load("ppo_taxi", env=vec_env)
 
-ppo_taxi_model = PPO.load("ppo_taxi_with_pickup", env=vec_env)
+ppo_taxi_model = PPO.load("ppo_taxi_with_pickup_six_actions", env=vec_env)
 
 my_taxi_env = vec_env.env.env.env
 
@@ -196,7 +201,7 @@ out, r, d, ep_ret, ep_len = my_taxi_env.reset(), 0, False, 0, 0
 o = out[0]
 
 # while True:
-for i in range(50):
+for i in range(250):
     action, _states = ppo_taxi_model.predict(o, deterministic=False)
     # obs, rewards, dones, info \
     o, r, d, _, _ = my_taxi_env.step(int(action))
