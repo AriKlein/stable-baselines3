@@ -27,6 +27,8 @@ import gymnasium as gym
 import numpy as np
 import pandas as pd
 
+from stable_baselines3.common.monitor import Monitor
+
 # Method to pretty-print the policies:
 # - Prints a policy map for each passenger location given that the passenger is not yet in the taxi, so the taxi should be trying to get to and pick up the passenger
 # - Prints a policy map for each destination location given that the passenger is already in the taxi, so the taxi should be trying to get to the destination and drop off the passenger
@@ -146,7 +148,6 @@ def export_policy_to_excel(model, my_env):
             for row_idx in range(5):
                 for col_idx in range(5):
                     obs = my_env.unwrapped.encode(row_idx, col_idx, pass_idx, dest_idx)
-                    state_index = obs
                     # Decode state and put into Excel DF
                     obs_decoded = list(my_env.unwrapped.decode(obs))
                     for ii in range(len(obs_decoded)):
@@ -173,7 +174,7 @@ def export_policy_to_excel(model, my_env):
                     greedy_action_index = int(np.argmax(p.cpu().detach().numpy()))
                     excel_df['Highest Probability Action'].append(possible_actions[greedy_action_index])
 
-                    greedy_policy[state_index] = greedy_action_index
+                    greedy_policy[obs] = greedy_action_index
 
     df = pd.DataFrame(excel_df)
 
@@ -181,12 +182,15 @@ def export_policy_to_excel(model, my_env):
     df.to_excel(writer, sheet_name='ppo_taxi_custom_rewards')
     writer.close()
 
-    pretty_print_policy(my_env,greedy_policy)
+    pretty_print_policy(my_env, greedy_policy)
 
 
 def main():
+    max_episode_len = 100
     my_taxi_env = gym.make("Taxi-v3", render_mode='human')
     my_taxi_env = AriTaxiRewardTransformer(my_taxi_env)
+    my_taxi_env = gym.wrappers.TimeLimit(my_taxi_env, max_episode_steps=max_episode_len)
+    my_taxi_env = Monitor(my_taxi_env, allow_early_resets=True)
 
     ppo_taxi_model = PPO.load("ppo_original_taxi_env_with_reward_wrapper", env=my_taxi_env)
 

@@ -18,9 +18,14 @@ from AriTaxiRewardTransformer import AriTaxiRewardTransformer
 from stable_baselines3 import PPO
 import gymnasium as gym
 
+from stable_baselines3.common.monitor import Monitor
+
 # Here we are also multi-worker training (n_envs=4 => 4 environments)
+max_episode_len = 100
 my_taxi_env = gym.make("Taxi-v3") # , render_mode='human') # , n_envs=4, seed=0)
 my_taxi_env = AriTaxiRewardTransformer(my_taxi_env)
+my_taxi_env = gym.wrappers.TimeLimit(my_taxi_env, max_episode_steps=max_episode_len)
+my_taxi_env = Monitor(my_taxi_env, allow_early_resets=True)
 
 # Frame-stacking with 4 frames
 

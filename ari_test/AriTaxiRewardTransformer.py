@@ -31,6 +31,9 @@ class AriTaxiRewardTransformer(gym.RewardWrapper):
         """Constructor for the Reward wrapper."""
         gym.RewardWrapper.__init__(self, env)
 
+    #def reset(self, seed):
+    #    super().reset(seed=seed)
+
     def step(
         self, action: ActType
     ) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
@@ -44,8 +47,7 @@ class AriTaxiRewardTransformer(gym.RewardWrapper):
 
         Args:
             previous_state: The state before taking the action,
-            obs: The state AFTER taking the previous action,
-            next_state: The state after taking the action
+            action:  the action taken in previous_state
 
         Returns:
             The transformed reward
